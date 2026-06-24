@@ -34,8 +34,8 @@
 ├── CLAUDE.md            # agent 指令：工作流 + 硬规则 + 中文产出
 ├── DESIGN.md            # 本文档
 ├── mcp/                 # 代码层（无状态，可随处部署）
-│   ├── okf_core.py      # 纯逻辑（stdlib + PyYAML），9 个核心函数
-│   ├── server.py        # FastMCP 包装，9 个工具，stdio 运行
+│   ├── okf_core.py      # 纯逻辑（stdlib + PyYAML），11 个核心函数
+│   ├── server.py        # FastMCP 包装，11 个工具，stdio 运行
 │   └── requirements.txt # mcp / pyyaml / markdownify
 └── okf-kb/              # 数据层（OKF_KB_ROOT 指向这里）
     ├── sources/articles/        # 原料层：抓取的文章（pin 死）
@@ -68,7 +68,7 @@
 
 ---
 
-## 5. 工具清单（9 个）
+## 5. 工具清单（11 个）
 
 代码真实实现见 `mcp/okf_core.py`；MCP 包装见 `mcp/server.py`。
 
@@ -88,7 +88,7 @@
 |---|---|---|---|
 | `list_concepts` | — | `[{id,type,title,description,resource}]` | 列概念 + 合法链接目标 |
 | `read_existing_doc` | `concept_id`* | `{id,frontmatter,body}` \| `null` | 读已有 doc（`null`→新建） |
-| `write_concept_doc` | `concept_id`*, `frontmatter`*, `body`* | `{id,path,created,bytes}` | 全量写/替换 concept |
+| `write_concept_doc` | `concept_id`*, `frontmatter`*, `body`* | `{id,path,created,bytes}` 或 `{error,...}` | 全量写/替换 concept（强制 type/title/description + augmentation 守卫） |
 
 ### 维护层
 | 工具 | 参数 | 返回 | 作用 |
@@ -96,6 +96,12 @@
 | `generate_index` | — | `{written:[...]}` | 重生成各级 `index.md`（幂等） |
 | `append_log` | `action`*, `summary`* | `{path,date,entry}` | 追加 `log.md`（SPEC §7 格式） |
 | `move_concept` | `from_id`*, `to_id`* | `{moved,from,to,path,links_rewritten}` | 迁移 + 重写所有受影响链接 |
+
+### web 富化层（爬取模式，可选）
+| 工具 | 参数 | 返回 | 作用 |
+|---|---|---|---|
+| `start_web_crawl` | `seeds`*, `max_pages`?, `max_depth`?, `allowed_hosts`?, `denied_path_substrings`? | `{seeds,allowed_hosts,max_pages,max_depth}` | 注册 seeds + 爬取预算（host 自动加白） |
+| `fetch_url` | `url`* | `{url,title,markdown,links,...}` 或 `{error,...}` | 带守卫抓单页（host 白名单/预算/深度/去重/防自造 URL） |
 
 ---
 
@@ -115,18 +121,30 @@
 move_concept(from_id, to_id)   → 自动重写链接 + 刷新 index + 记 log
 ```
 
+**web 富化**（顺藤摸瓜爬取权威文档，可选）：
+```
+start_web_crawl(seeds, max_pages=20, max_depth=2)   → 注册 seeds + 预算 + host 白名单
+fetch_url(seed)                                     → {markdown, links, ...}
+  → 从 links 挑权威页 → fetch_url → 富化已有 concept / mint references/ / 跳过
+  → error（max_pages/host/depth/not-reachable）即停或换 URL，不重试同一 URL
+```
+
 ---
 
 ## 7. 关键不变量与保证
 
 | 不变量 | 由谁保证 | 机制 |
 |---|---|---|
-| frontmatter 必含非空 `type` | `write_concept_doc` | 缺则 `ValueError` |
+| frontmatter 必含 `type`+`title`+`description` | `write_concept_doc` | 缺则返回 `{error,missing}`（不抛异常，便于模型恢复） |
 | `timestamp` 自动刷新 | `write_concept_doc` | 空则填当前 UTC |
+| frontmatter 规范排序 | `write_concept_doc` | `_reorder_frontmatter` 固定 key 顺序，diff 干净 |
+| concept_id 无逃逸 | `write/read/move` | `_normalize_concept_id` 剥离 `/`、过滤 `.`/`..` |
+| **augmentation 不丢章节** | `write_concept_doc` | 覆盖已有 doc 时若丢掉已有 `#` 标题则拒绝（代码块感知） |
 | 写是全量替换 | `write_concept_doc` | prompt 要求 augmentation 时回传所有 key |
 | `index.md` 反映真实内容 | `generate_index` | 扫描派生，幂等 |
 | `log.md` SPEC §7 格式 | `append_log` | ISO 日期、newest-first、同日分组 |
 | **迁移不断链** | `move_concept` | 入站链接重写 + 出站链接重基（见下） |
+| **爬取受控** | `fetch_url` | host 白名单 / 页数预算 / 深度上限 / 去重 / 必须从 seed 可达 |
 | 交叉链接用相对路径 | `CLAUDE.md` 规则 | 不以 `/` 开头 |
 | 只链已存在 concept | `CLAUDE.md` 规则 | 目标取自 `list_concepts` |
 | 不编造事实/URL | `CLAUDE.md` 规则 | 引用只用真实抓取过的 |
@@ -187,16 +205,21 @@ move_concept(from_id, to_id)   → 自动重写链接 + 刷新 index + 记 log
 
 ## 10. 与原 OKF 的关系
 
-本项目是 [knowledge-catalog/okf](https://github.com/GoogleCloudPlatform/knowledge-catalog) 的**消费侧简化复刻**，面向"网页文章"而非 BigQuery：
+本项目是 [knowledge-catalog/okf](https://github.com/GoogleCloudPlatform/knowledge-catalog) 的**消费侧复刻**，面向"网页文章"而非 BigQuery。早期版本相对原仓库存在 4 处差距，现已全部对齐（见 §12）：
 
-| 维度 | 原 OKF reference agent | 本项目 |
-|---|---|---|
-| 数据源 | BigQuery（结构化 catalog） | 网页文章（散文） |
-| agent 载体 | Python ADK runner（独立循环） | Claude Code（MCP） |
-| `index.md` 生成 | runner 后处理 `regenerate_indexes` | `generate_index` 工具（模型主动调） |
-| `log.md` | **无自动化** | `append_log` 工具（本项目新增） |
-| 移动/重组 | 无 | `move_concept` 工具（本项目新增） |
-| 目录描述合成 | 调 LLM（gemini-flash） | 纯确定性（用 frontmatter description） |
+| 维度 | 原 OKF reference agent | 本项目 | 状态 |
+|---|---|---|---|
+| 数据源 | BigQuery（结构化 catalog） | 网页文章（散文） | 设计差异 |
+| agent 载体 | Python ADK runner（独立循环） | Claude Code（MCP） | 设计差异 |
+| frontmatter 写时校验 | 强制 type/title/description/timestamp | 强制 type/title/description（timestamp 自动） | ✅ 已对齐 |
+| augmentation 代码守卫 | 拒绝缩小 Schema/Citations | 拒绝丢掉已有 `#` 标题（代码块感知） | ✅ 已对齐 |
+| concept_id 归一化 | `parse_concept_id` | `_normalize_concept_id`（防逃逸） | ✅ 已对齐 |
+| frontmatter 规范排序 | `_reorder_frontmatter` | `_reorder_frontmatter` | ✅ 已对齐 |
+| web 富化/爬取 | `fetch_url`（host/预算/深度/去重） | `start_web_crawl` + `fetch_url`（同套守卫） | ✅ 已对齐 |
+| `index.md` 生成 | runner 后处理 `regenerate_indexes` | `generate_index` 工具（模型主动调） | ✅ |
+| `log.md` | **无自动化** | `append_log` 工具（本项目新增） | ➕ 超越 |
+| 移动/重组 | 无 | `move_concept` + 双向链接重写（本项目新增） | ➕ 超越 |
+| 目录描述合成 | 调 LLM（gemini-flash） | 纯确定性（用 frontmatter description） | 简化 |
 
 OKF 格式本身（SPEC §1–11）完全遵守：concept = markdown + YAML frontmatter，`type` 必填，`index.md`/`log.md` 为保留文件名，交叉链接表达关系。
 
@@ -207,3 +230,25 @@ OKF 格式本身（SPEC §1–11）完全遵守：concept = markdown + YAML fron
 - **换数据源**：`okf_core.py` 里 `list_articles`/`read_article`/`acquire_url` 是 file-source 实现；接数据库 catalog 时替换这三个即可，其余不变。
 - **批处理**：需要无人值守批量富化时，`import okf_core` 套 `for concept in concepts:` 循环——核心函数已是纯 Python，零迁移成本。
 - **可视化**：bundle 是标准 OKF，可用 `knowledge-catalog/okf` 的 `visualize`（仅需 PyYAML）生成单文件交互图谱。
+
+---
+
+## 12. v2 增量：约束进工具 + web 富化
+
+v1 把若干"必须成立的不变量"留在了 prompt 里（违反 §2 原则）。v2 将它们下沉到代码，并补齐 web 爬取能力。工具总数 9 → **11**。
+
+| 增量 | 解决的问题 | 实现 |
+|---|---|---|
+| **augmentation 代码守卫** | v1 整段重写会丢章节，纯靠 prompt | `write_concept_doc` 覆盖已有 doc 时，拒绝丢掉任何已有 `#` 标题，返回 `{error,dropped_headings}`；代码块内 `#` 不计 |
+| **frontmatter 强校验** | v1 只校验 `type`，index/检索缺 description | 必填 `type+title+description`，缺则 `{error,missing}` |
+| **concept_id 归一化** | v1 对 `/x`、`..` 不设防 | `_normalize_concept_id` 在 write/read/move 统一应用，防逃逸 |
+| **frontmatter 规范排序** | v1 插入序，diff 噪音 | `_reorder_frontmatter` 固定 key 序 |
+| **web 爬取（`start_web_crawl` + `fetch_url`）** | v1 只能钉死单篇，无"顺藤摸瓜"富化 | 守卫全在 `fetch_url` 内：host 白名单、denied 路径、页数预算、深度上限、去重、必须从 seed 可达（防模型自造 URL） |
+
+### 校验/守卫的返回约定
+
+`write_concept_doc` 与 `fetch_url` 在被拒绝时**返回 `{error, ...}` 而非抛异常**——模型读 `error`、修正输入、重调。这是与原仓库一致的模式，比异常更适合 tool-calling 循环。
+
+### 验证摘要
+
+augmentation 守卫（丢标题被拒 + 代码块感知）、强校验（缺 title/description）、id 归一化（无逃逸）、规范排序、web 守卫（host/预算/深度/去重/可达性）均已用临时 KB + `example.com` 实测通过；conda 环境 11 工具全部注册。

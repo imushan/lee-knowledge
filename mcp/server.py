@@ -17,12 +17,14 @@ import sys
 from okf_core import (
     acquire_url as _acquire_url,
     append_log as _append_log,
+    fetch_url as _fetch_url,
     generate_index as _generate_index,
     list_articles as _list_articles,
     list_concepts as _list_concepts,
     move_concept as _move_concept,
     read_article as _read_article,
     read_existing_doc as _read_existing_doc,
+    start_web_crawl as _start_web_crawl,
     write_concept_doc as _write_concept_doc,
 )
 
@@ -101,19 +103,29 @@ def read_existing_doc(concept_id: str) -> dict | None:
 @mcp.tool()
 def write_concept_doc(concept_id: str, frontmatter: dict, body: str) -> dict:
     """Write a curated OKF concept doc. This is a FULL REPLACEMENT, not a
-    patch: the frontmatter argument must include EVERY key (type is required;
-    timestamp may be omitted to auto-refresh). The body must be valid
-    markdown ready for direct human/agent consumption — no preamble or
+    patch: the frontmatter argument must include EVERY key. The body must be
+    valid markdown ready for direct human/agent consumption — no preamble or
     reasoning narration.
+
+    Enforced in the tool (not just the prompt):
+      - frontmatter must include non-empty `type`, `title`, `description`
+        (timestamp auto-refreshes if omitted; keys are written in canonical
+        order);
+      - AUGMENTATION GUARD: when overwriting an existing doc, the write is
+        REFUSED if it drops any existing top-level '#' heading — you must
+        augment (preserve every heading, extend or add), not rewrite.
+
+    On validation/augmentation failure returns {error, concept_id, ...} —
+    read the `error`, fix the input, and re-call.
 
     Args:
       concept_id:  slash-joined path, e.g. 'concepts/ga4_events'.
-      frontmatter: dict; must include non-empty 'type'. When augmenting an
-                   existing doc, copy every existing key verbatim and merge
-                   tags as a union.
+      frontmatter: dict; must include non-empty type/title/description.
+                   When augmenting, copy every existing key verbatim and
+                   merge tags as a union.
       body:        markdown body.
 
-    Returns {id, path, created, bytes}."""
+    Returns {id, path, created, bytes} on success."""
     return _write_concept_doc(concept_id, frontmatter, body)
 
 
@@ -164,6 +176,50 @@ def move_concept(from_id: str, to_id: str) -> dict:
 
     Returns {moved, from, to, path, links_rewritten}."""
     return _move_concept(from_id, to_id)
+
+
+@mcp.tool()
+def start_web_crawl(
+    seeds: list[str],
+    max_pages: int = 20,
+    max_depth: int = 2,
+    allowed_hosts: list[str] | None = None,
+    denied_path_substrings: list[str] | None = None,
+) -> dict:
+    """Start a bounded web crawl for enrichment. Call this ONCE before
+    fetch_url. Registers the seed URLs (depth 0) and a crawl budget; seed
+    hosts are auto-added to the allow-list.
+
+    This is the crawl equivalent of acquire_url, but for FOLLOWING links
+    rather than pinning one chosen article: the model fetches seeds, reads
+    their outbound links, and decides which authoritative pages to follow —
+    all bounded by the guards enforced inside fetch_url.
+
+    Args:
+      seeds:  seed URLs to start from.
+      max_pages:          hard cap on total fetches (default 20).
+      max_depth:          max hops from a seed (default 2).
+      allowed_hosts:      extra hosts beyond the seed hosts.
+      denied_path_substrings: path substrings to block (e.g. ['/tag/', '/page/']).
+
+    Returns {seeds, allowed_hosts, max_pages, max_depth}."""
+    return _start_web_crawl(seeds, max_pages, max_depth, allowed_hosts, denied_path_substrings)
+
+
+@mcp.tool()
+def fetch_url(url: str) -> dict:
+    """Fetch one page within the active crawl. All guards are enforced inside
+    this tool: host allow-list, denied-path blocklist, dedup, page budget,
+    and hop-depth/reachability. An `error` field means stop or pick another
+    URL — do NOT retry the same URL.
+
+    Only URLs reachable from a seed (returned as a link by some fetched page,
+    within max_depth) may be fetched — you cannot invent URLs.
+
+    Success: {url, title, markdown, links, fetched_count, max_pages_budget,
+              depth, max_depth}. Use `links` to decide what to follow next,
+    and to enrich existing concepts or mint references/ docs."""
+    return _fetch_url(url)
 
 
 if __name__ == "__main__":

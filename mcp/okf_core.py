@@ -79,6 +79,62 @@ def _rel_id(path: Path, root: Path) -> str:
     return str(path.relative_to(root).with_suffix("")).replace(os.sep, "/")
 
 
+# --- concept-id normalization + frontmatter invariants ---------------------
+
+# frontmatter keys the tool enforces at write time. SPEC §4.1 makes only
+# `type` strictly required, but the original reference agent enforces these
+# four (title/description feed index.md and search; timestamp auto-fills).
+REQUIRED_FRONTMATTER_KEYS = ("type", "title", "description")
+
+# canonical key order for stable, reviewable diffs (mirrors the original
+# agent's _PREFERRED_KEY_ORDER).
+_PREFERRED_KEY_ORDER = ("type", "resource", "title", "description", "tags", "timestamp")
+
+
+def _normalize_concept_id(concept_id: str) -> str:
+    """Normalize a concept id to a clean slash path.
+
+    Strips leading/trailing slashes, backslashes → '/', drops empty/`.`/`..`
+    segments so the id can never escape the bundle root or produce a weird
+    path like '/concepts/x'."""
+    cid = (concept_id or "").strip().replace("\\", "/")
+    parts = [p for p in cid.split("/") if p and p not in (".", "..")]
+    return "/".join(parts)
+
+
+def _reorder_frontmatter(fm: dict[str, Any]) -> dict[str, Any]:
+    """Return fm with canonical key ordering; unknown keys appended after."""
+    ordered: dict[str, Any] = {}
+    for key in _PREFERRED_KEY_ORDER:
+        if key in fm:
+            ordered[key] = fm[key]
+    for key, value in fm.items():
+        if key not in ordered:
+            ordered[key] = value
+    return ordered
+
+
+def _top_level_headings(body: str) -> list[str]:
+    """Top-level '# heading' texts in order, skipping fenced code blocks."""
+    out: list[str] = []
+    in_fence = False
+    fence = None
+    for line in (body or "").splitlines():
+        s = line.strip()
+        if s.startswith("```") or s.startswith("~~~"):
+            tok = s[:3]
+            if not in_fence:
+                in_fence, fence = True, tok
+            elif tok == fence:
+                in_fence, fence = False, None
+            continue
+        if in_fence:
+            continue
+        if s.startswith("# ") and not s.startswith("## "):
+            out.append(s[2:].strip())
+    return out
+
+
 # --- source layer: raw articles --------------------------------------------
 
 def list_articles() -> list[dict[str, Any]]:
@@ -183,6 +239,7 @@ def read_existing_doc(concept_id: str) -> dict[str, Any] | None:
     None signals 'this concept is new' — the caller should author from
     scratch rather than augment.
     """
+    concept_id = _normalize_concept_id(concept_id)
     p = BUNDLE_DIR / f"{concept_id}.md"
     if not p.exists():
         return None
@@ -195,24 +252,73 @@ def write_concept_doc(
 ) -> dict[str, Any]:
     """Write (full-replacement) a curated concept doc.
 
-    Validation enforces the OKF invariants the model must honor:
+    Enforces the OKF invariants in code, not just in the prompt:
       - frontmatter is a dict,
-      - it carries a non-empty `type`,
-      - a missing/empty `timestamp` is auto-refreshed to now (UTC).
+      - it carries non-empty `type`, `title`, `description` (timestamp
+        auto-refreshes to now if omitted),
+      - keys are written in canonical order,
+      - AUGMENTATION GUARD: when overwriting an existing doc, refuse to drop
+        any existing top-level '#' heading (the model must augment, not
+        rewrite). Mirrors the original agent's Schema/Citations guard.
 
-    Returns {id, path, created, bytes}.
+    On a validation/augmentation failure returns an {error, concept_id, ...}
+    dict instead of raising, so the model can read the reason and re-call.
+    On success returns {id, path, created, bytes}.
     """
+    concept_id = _normalize_concept_id(concept_id)
     if not isinstance(frontmatter, dict):
-        raise ValueError("frontmatter must be a dict")
-    if not frontmatter.get("type"):
-        raise ValueError("frontmatter missing required 'type' key")
-    if not frontmatter.get("timestamp"):
-        frontmatter["timestamp"] = _now_iso()
+        return {"error": "frontmatter must be a dict", "concept_id": concept_id}
+
+    missing = [k for k in REQUIRED_FRONTMATTER_KEYS if not frontmatter.get(k)]
+    if missing:
+        return {
+            "error": (
+                f"frontmatter missing required key(s): {', '.join(missing)}. "
+                f"Required: {', '.join(REQUIRED_FRONTMATTER_KEYS)} (timestamp "
+                f"auto-fills). Re-call write_concept_doc with them set."
+            ),
+            "concept_id": concept_id,
+            "missing": missing,
+        }
+
+    fm = dict(frontmatter)
+    if not fm.get("timestamp"):
+        fm["timestamp"] = _now_iso()
+    fm = _reorder_frontmatter(fm)
 
     p = BUNDLE_DIR / f"{concept_id}.md"
+
+    # Augmentation guard: refuse to overwrite in a way that drops existing
+    # top-level headings. The model must preserve every existing '#' heading
+    # (same wording/order) and only extend or add.
+    if p.exists():
+        try:
+            _, old_body = split_doc(p.read_text(encoding="utf-8"))
+        except Exception:
+            old_body = ""
+        old_headings = _top_level_headings(old_body)
+        new_headings = set(_top_level_headings(body or ""))
+        dropped = [h for h in old_headings if h not in new_headings]
+        if dropped:
+            shown = ", ".join(f"`# {h}`" for h in dropped[:8])
+            trunc = " (and more)" if len(dropped) > 8 else ""
+            return {
+                "error": (
+                    f"Refusing to write: this overwrites an existing doc and "
+                    f"would drop {len(dropped)} existing top-level heading(s): "
+                    f"{shown}{trunc}. Augment, do not rewrite — preserve every "
+                    f"existing '#' heading (same wording, same order) and only "
+                    f"extend under them or add new headings after. Re-call "
+                    f"read_existing_doc to see the current doc, then re-call "
+                    f"write_concept_doc with all headings preserved."
+                ),
+                "concept_id": concept_id,
+                "dropped_headings": dropped,
+            }
+
     p.parent.mkdir(parents=True, exist_ok=True)
     existed = p.exists()
-    p.write_text(join_doc(frontmatter, body), encoding="utf-8")
+    p.write_text(join_doc(fm, body), encoding="utf-8")
     return {
         "id": concept_id,
         "path": str(p.relative_to(KB_ROOT)),
@@ -511,8 +617,8 @@ def move_concept(from_id: str, to_id: str) -> dict[str, Any]:
 
     Returns {moved, from, to, path, links_rewritten}. Raises if the source is
     unknown or the target already exists."""
-    from_id = from_id.strip("/")
-    to_id = to_id.strip("/")
+    from_id = _normalize_concept_id(from_id)
+    to_id = _normalize_concept_id(to_id)
     if from_id == to_id:
         return {"moved": False, "from": from_id, "to": to_id, "links_rewritten": 0}
 
@@ -553,4 +659,199 @@ def move_concept(from_id: str, to_id: str) -> dict[str, Any]:
         "to": to_id,
         "path": str(to_path.relative_to(KB_ROOT)),
         "links_rewritten": total,
+    }
+
+
+# --- web enrichment crawl --------------------------------------------------
+#
+# acquire_url pins ONE chosen article. The pair below adds the original
+# agent's other capability: the LLM as its own crawler. start_web_crawl
+# registers seeds and a crawl budget; fetch_url then enforces, inside the
+# tool, a host allow-list, a page budget, a hop-depth cap, dedup, and a
+# "must be reachable from a seed" check — so the model cannot overrun or
+# wander off-site. Each fetch returns the page's markdown AND its outbound
+# links so the model can decide which to follow.
+
+from urllib.parse import urljoin, urlparse  # noqa: E402
+
+
+class _WebState:
+    def __init__(self) -> None:
+        self.reset()
+
+    def reset(self) -> None:
+        self.seeds: list[str] = []
+        self.allowed_hosts: set[str] = set()
+        self.allowed_path_prefixes: list[str] = []
+        self.denied_path_substrings: list[str] = []
+        self.max_pages: int = 0
+        self.max_depth: int = 0
+        self.visited: set[str] = set()
+        self.url_depth: dict[str, int] = {}
+        self.fetched_count: int = 0
+
+    @property
+    def active(self) -> bool:
+        return bool(self.seeds)
+
+
+_web_state = _WebState()
+
+
+def start_web_crawl(
+    seeds: list[str],
+    max_pages: int = 20,
+    max_depth: int = 2,
+    allowed_hosts: list[str] | None = None,
+    denied_path_substrings: list[str] | None = None,
+) -> dict[str, Any]:
+    """Initialize a bounded web crawl and register its seed URLs.
+
+    Resets any prior crawl state. Hosts of the seeds are auto-added to the
+    allow-list; pass extra hosts via `allowed_hosts`. Only pages reachable
+    from a seed (within max_depth hops) may be fetched.
+
+    Args:
+      seeds:  list of seed URLs to start from (depth 0).
+      max_pages:          hard cap on total fetches this crawl (default 20).
+      max_depth:          max hops from a seed (default 2).
+      allowed_hosts:      extra hosts to permit beyond the seed hosts.
+      denied_path_substrings: path substrings to block (e.g. '/tag/', '/page/').
+
+    Returns {seeds, allowed_hosts, max_pages, max_depth}."""
+    _web_state.reset()
+    norm_seeds: list[str] = []
+    for s in seeds or []:
+        s = (s or "").strip()
+        if not s:
+            continue
+        if not urlparse(s).scheme:
+            s = "https://" + s
+        norm_seeds.append(s)
+
+    _web_state.seeds = norm_seeds
+    _web_state.allowed_hosts = {urlparse(s).netloc for s in norm_seeds if urlparse(s).netloc}
+    if allowed_hosts:
+        _web_state.allowed_hosts |= {h for h in allowed_hosts if h}
+    _web_state.denied_path_substrings = [d for d in (denied_path_substrings or []) if d]
+    _web_state.max_pages = max(1, int(max_pages))
+    _web_state.max_depth = max(0, int(max_depth))
+    for s in norm_seeds:
+        _web_state.url_depth.setdefault(s, 0)
+
+    return {
+        "seeds": _web_state.seeds,
+        "allowed_hosts": sorted(_web_state.allowed_hosts),
+        "max_pages": _web_state.max_pages,
+        "max_depth": _web_state.max_depth,
+    }
+
+
+_HREF_RE = re.compile(r'<a\s[^>]*href=["\']([^"\']+)["\']', re.IGNORECASE)
+
+
+def _extract_links(base_url: str, html: str) -> list[str]:
+    out: list[str] = []
+    seen: set[str] = set()
+    for m in _HREF_RE.finditer(html):
+        href = (m.group(1) or "").strip()
+        if (
+            not href
+            or href.startswith("#")
+            or href.lower().startswith(("mailto:", "javascript:", "tel:", "data:"))
+        ):
+            continue
+        absu = urljoin(base_url, href)
+        parsed = urlparse(absu)
+        if parsed.scheme in ("http", "https") and parsed.netloc:
+            clean = parsed._replace(fragment="").geturl()
+            if clean not in seen:
+                seen.add(clean)
+                out.append(clean)
+    return out
+
+
+def _fetch_and_parse(url: str) -> dict[str, Any]:
+    from markdownify import markdownify as html_to_md
+
+    html = _fetch_html(url)
+    title_m = re.search(r"<title[^>]*>(.*?)</title>", html, re.IGNORECASE | re.DOTALL)
+    return {
+        "url": url,
+        "title": title_m.group(1).strip() if title_m else url,
+        "markdown": html_to_md(html),
+        "links": _extract_links(url, html),
+    }
+
+
+def fetch_url(url: str) -> dict[str, Any]:
+    """Fetch one page within the active crawl. Guards are enforced HERE, not
+    by the model: scheme, host allow-list, denied-path blocklist, dedup,
+    page budget, and hop-depth/reachability. Treat an `error` return as a
+    signal to stop or pick a different URL — do not retry the same URL.
+
+    Success: {url, title, markdown, links, fetched_count, max_pages_budget,
+              depth, max_depth}.
+    Rejected: {error, url, fetched_count, max_pages_budget}.
+    """
+    url = (url or "").strip()
+    state = _web_state
+
+    def _reject(reason: str) -> dict[str, Any]:
+        return {
+            "error": reason,
+            "url": url,
+            "fetched_count": state.fetched_count,
+            "max_pages_budget": state.max_pages,
+        }
+
+    if not state.active:
+        return _reject("no active crawl — call start_web_crawl first")
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        return _reject(f"unsupported scheme: {parsed.scheme or '(none)'}")
+    if not parsed.netloc:
+        return _reject("missing host in URL")
+    if state.allowed_hosts and parsed.netloc not in state.allowed_hosts:
+        return _reject(
+            f"host not in allowed list: {parsed.netloc} "
+            f"(allowed: {sorted(state.allowed_hosts)})"
+        )
+    path = parsed.path or "/"
+    for bad in state.denied_path_substrings:
+        if bad and bad in path:
+            return _reject(f"path matches denied substring: {bad!r}")
+    if url in state.visited:
+        return _reject("already fetched in this crawl")
+    if state.fetched_count >= state.max_pages:
+        return _reject("max_pages reached")
+    depth = state.url_depth.get(url)
+    if depth is None:
+        return _reject(
+            "URL not reachable from a seed within the crawl graph "
+            "(not returned as a link by any fetched page)"
+        )
+    if depth > state.max_depth:
+        return _reject(f"depth {depth} exceeds max_depth {state.max_depth}")
+
+    state.visited.add(url)
+    state.fetched_count += 1
+    try:
+        page = _fetch_and_parse(url)
+    except Exception as e:  # noqa: BLE001 - surface as a structured reject
+        return _reject(f"fetch failed: {e}")
+
+    child_depth = depth + 1
+    for link in page["links"]:
+        state.url_depth.setdefault(link, child_depth)
+
+    return {
+        "url": page["url"],
+        "title": page["title"],
+        "markdown": page["markdown"],
+        "links": page["links"],
+        "fetched_count": state.fetched_count,
+        "max_pages_budget": state.max_pages,
+        "depth": depth,
+        "max_depth": state.max_depth,
     }

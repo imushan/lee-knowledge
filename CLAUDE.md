@@ -32,6 +32,8 @@ bundles/<name>/*.md     curated OKF concepts — the knowledge layer (output)
 | `generate_index` | bundle | regenerate `index.md` in every dir (SPEC §6) |
 | `append_log` | bundle | append a dated entry to `log.md` (SPEC §7) |
 | `move_concept` | bundle | move a concept + rewrite all affected links |
+| `start_web_crawl` | web | register seeds + a bounded crawl budget |
+| `fetch_url` | web | fetch one page within the crawl (guarded) |
 
 ## Enrichment workflow (per concept)
 
@@ -59,13 +61,15 @@ Articles are prose, not tables — decide mapping before writing:
 
 ## Frontmatter (required + recommended)
 
-Required:
+Required (enforced by `write_concept_doc` — the write is refused without them):
 
 - `type` — concept kind (e.g. `Concept`, `Reference`, `Article`). Non-empty.
+- `title` — human-readable display name.
+- `description` — one sentence; used verbatim in `index.md` and search.
 
-Recommended: `title`, `description` (one sentence — used in `index.md`),
-`resource` (canonical URI of the underlying asset), `tags` (list),
-`timestamp` (omit to auto-refresh).
+Recommended: `resource` (canonical URI of the underlying asset), `tags` (list),
+`timestamp` (omit to auto-refresh). Keys are written in canonical order by the
+tool for clean diffs.
 
 ## Augmentation rules (NON-NEGOTIABLE)
 
@@ -82,7 +86,9 @@ whole doc:
    may extend prose under a heading, add bullets to existing lists, add `##`
    sub-sections, add new `#` headings **after** existing ones, and append to
    `# Citations`. You may **not** drop, rename, or reorder existing headings,
-   nor replace the body wholesale.
+   nor replace the body wholesale. **This is enforced**: `write_concept_doc`
+   refuses any write that drops an existing top-level heading and returns an
+   `error` — read it, preserve the heading, and re-call.
 3. If the article is a fundamentally different topic (tutorial, changelog,
    overview), do **not** force it into an existing concept — mint a
    `references/<slug>.md` and cross-link, or skip.
@@ -122,6 +128,30 @@ directions**, so it must go through the tool, never a hand-edit:
   relative links to its new directory, then refreshes `index.md` and logs.
 - Never move a file by hand, and never ask `write_concept_doc` to "rewrite at
   a new path" as a substitute — that strands every inbound link.
+
+## Web enrichment (optional, crawl mode)
+
+`acquire_url` pins one article you name. For **following links** from seeds
+(the LLM as its own crawler), use the crawl pair — all guards live inside
+`fetch_url` (host allow-list, page budget, hop depth, dedup, no invented URLs):
+
+1. `start_web_crawl(seeds, max_pages=20, max_depth=2)` — register seeds +
+   budget. Seed hosts become the allow-list.
+2. `fetch_url(seed_url)` → returns `{markdown, links, ...}`. From `links`,
+   pick a small handful that look like **authoritative documentation** for
+   existing concepts; skip nav/footer/login/marketing. `fetch_url` each.
+3. For **each page fetched**, decide one of:
+   - **Enrich** an existing concept (read_existing_doc → augment per the rules
+     above → write_concept_doc).
+   - **Mint** a `references/<slug>.md` (metric / glossary / enum / convention)
+     and cross-link from related primary docs.
+   - **Skip** if irrelevant, low-signal, or already covered.
+4. Respect `error` returns from `fetch_url` (`max_pages reached`, `host not
+   allowed`, `depth exceeds`, `not reachable from a seed`): stop or pick
+   another URL — never retry the same one, and never fabricate URLs.
+
+When in doubt, skip. Crawl enrichment is optional — a bundle built purely from
+`acquire_url` + hand curation is complete and correct.
 
 ## Language
 
