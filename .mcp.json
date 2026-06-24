@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "okf-kb": {
+      "command": "/home/ai/miniconda3/envs/okf-kb/bin/python",
+      "args": ["/home/ai/lee/workspace/lee_knowledge/mcp/server.py"],
+      "env": {
+        "OKF_KB_ROOT": "/home/ai/lee/workspace/lee_knowledge/okf-kb",
+        "OKF_BUNDLE": "test"
+      }
+    }
+  }
+}
