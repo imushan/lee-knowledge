@@ -3,6 +3,7 @@
 
 ## 2026-06-24
 
+* **Creation**: 引入 vibe-types Scala 3 编译期约束指南：新增 1 篇总览概念（concepts/scala3/vibe_types_guide）、47 篇特性目录参考（references/scala3/catalog/）、20 篇用例索引参考（references/scala3/usecases/），全部简体中文、含文件相对路径交叉链接。
 * **Update**: 将两个 Scala 3 概念文档迁入 concepts/scala3/ 子目录，便于主题归类（move_concept 自动重写交叉链接）。
 * **Update**: 将概念 concepts/scala3_context_abstraction 迁移至 concepts/scala3/scala3_context_abstraction（重写 6 处链接）。
 * **Update**: 将概念 concepts/scala3_complete_guide 迁移至 concepts/scala3/scala3_complete_guide（重写 6 处链接）。
