@@ -3,6 +3,7 @@
 
 ## 2026-06-25
 
+* **Update**: 增强「捕获检查」与「分离检查」概念文档：补充捕获类型语法、引用透明 map 示例、别名追踪、设计动机说明，添加 VirtusLab 文章引用
 * **Creation**: 创建分离检查（Separation Checking）概念文档，基于 Scala 3 的 Capture Checking 扩展，介绍 SharedCapability、ExclusiveCapability、移动语义和消费参数等核心概念。
 
 

@@ -1,6 +1,6 @@
 ---
 type: Reference
-resource: https://virtuslab.com/blog/scala/introduction-to-scala-3-checking
+resource: https://docs.scala-lang.org/scala3/reference/experimental/capture-checking/separation-checking.html
 title: 分离检查（Separation Checking）
 description: 基于捕获检查的实验性扩展，通过 SharedCapability 和 ExclusiveCapability 追踪程序中哪些部分可以修改数据，防止并发数据竞争并区分只读与可写效果。
 tags:
@@ -11,7 +11,8 @@ tags:
 - 实验性
 - SharedCapability
 - ExclusiveCapability
-timestamp: '2026-06-25T08:02:33Z'
+- Capture Checking
+timestamp: '2026-06-25T12:58:17Z'
 ---
 
 # 分离检查（Separation Checking）
@@ -39,7 +40,7 @@ class Ref(init: Int) extends Mutable:
 
 这里，`any`（`caps.any`）是一个**顶层能力**，本质上与捕获检查中的通用能力（`cap`）相同，但在分离检查中，每次出现的 `any` 都被视为不同且排他的。（`any.rd` 是 `any` 的只读版本：它授予读取权限但禁止修改（即调用 `update` 方法）。）
 
-（每次出现的 `any` 都被视为一个独立的排他能力。例如，在 `def swap(a: Ref^, b: Ref^)` 中，`a` 获得 `Ref^{any₁}`，`b` 获得 `Ref^{any₂}`——两个不同的能力，因此编译器知道它们不会相互别名。）
+每次出现的 `any` 都被视为一个独立的排他能力。例如，在 `def swap(a: Ref^, b: Ref^)` 中，`a` 获得 `Ref^{any₁}`，`b` 获得 `Ref^{any₂}`——两个不同的能力，因此编译器知道它们不会相互别名。
 
 编写参数类型时，`Ref` 扩展为 `Ref^{any.rd}`（只读访问）。`Ref^` 扩展为 `Ref^{any}`（包括修改在内的完全访问）。
 
@@ -131,10 +132,14 @@ def incr(r: Ref^ { consume }): Ref^ =
 
 ## 与其他特性的交互
 
-- **捕获检查**：分离检查建立在捕获检查之上，使用相同的捕获集语法（`T^{c1, c2}`）来追踪能力。
+- **捕获检查**：分离检查建立在捕获检查之上，使用相同的捕获集语法（`T^{c1, c2}`）来追踪能力。参见 [捕获检查](./effect-tracking.md)。
 - **纯函数类型**：`A -> B` 表示不捕获任何能力的纯函数，与分离检查结合可以保证函数不会修改外部状态。
 - **能力类**：继承 `caps.SharedCapability` 的类型自动获得只读语义，继承 `caps.Mutable` 的类型支持修改操作。
 - **子类型关系**：更小的捕获集产生子类型，只读能力是排他能力的子类型。
+
+## 设计动机
+
+编写大规模软件时，处理可变数据是最棘手的部分之一。数据可能在意外的地方被修改，资源可能在错误的时机被使用。Rust 通过所有权和生命周期来缓解这些问题，但 Scala 作为 GC 语言需要不同的方案。分离检查的目标是：在保留 GC 内存管理的同时，选择性地引入类似 Rust 的约束——追踪对资源的访问权限（能力），而非管理内存。
 
 ## 注意事项与局限
 
@@ -152,4 +157,7 @@ def incr(r: Ref^ { consume }): Ref^ =
 # 引用
 
 - https://virtuslab.com/blog/scala/introduction-to-scala-3-checking
+- https://docs.scala-lang.org/scala3/reference/experimental/cc.html
 - https://docs.scala-lang.org/scala3/reference/experimental/capture-checking/separation-checking.html
+- https://capless.cc/
+- https://2025.workshop.scala-lang.org/details/scala-2025/6/
