@@ -2,7 +2,7 @@
 type: Article
 title: Introduction to Scala 3's Capture Checking and Separation Checking
 resource: https://virtuslab.com/blog/scala/introduction-to-scala-3-checking
-timestamp: '2026-06-25T08:00:45Z'
+timestamp: '2026-06-25T12:50:03Z'
 ---
 
 Introduction to Scala 3's Capture Checking and Separation Checking   
@@ -314,10 +314,10 @@ In this article
 
 Related articles
 
-* [State of Scala survey 2022](/blog/scala/scala-survey-2022/)
-* [How to mine Scala 3 compiler metadata using TASTy files](/blog/scala/scala-3-compiler-mining-metadata-tasty-files/)
-* [The Most Common Scala Myths Debunked](/blog/scala/the-most-common-scala-myths-debunked/)
-* [Scala 3 migration: 7 benefits that outweigh the risks](/blog/scala/scala-3-migration-benefits-risks/)
+* [Comparing effect systems in Scala: The Problem and Future](/blog/scala/comparing-effect-systems-in-scala/)
+* [Rethinking Gatling: A Scala CLI and Containerisation Approach to Performance Testing](/blog/scala/gatling-a-scala-cli/)
+* [OOP vs. FP. The pursuit of extensibility part #1](/blog/scala/oop-vs-fp-the-pursuit-of-extensibility-part-1/)
+* [Building Tools for an Unlimited Number of Edge Cases](/blog/scala/building-tools-for-an-unlimited-number-of-edge-cases/)
 
 Article tags
 
@@ -330,13 +330,13 @@ Article tags
 Explore more topics
 -------------------
 
-[![State of Scala survey 2022_cover](https://cdn.virtuslab.com/State_of_Scala_survey_2022_cover_8d57e3b3fa.jpg?format=webp&width=500)
+[![Image Alt](https://cdn.virtuslab.com/6_cover_ea58d787ee.jpg?format=webp&width=500)
 
-### State of Scala survey 2022](/blog/scala/scala-survey-2022/)[![How_to_mine_Scala_3_compiler_metadata_using_TASTy_files_image-min.jpg](https://cdn.virtuslab.com/How_to_mine_Scala_3_compiler_metadata_using_TAS_Ty_files_image_min_0bdb34cc23.jpg?format=webp&width=500)
+### Comparing effect systems in Scala: The Problem and Future](/blog/scala/comparing-effect-systems-in-scala/)[![logos_gatling_Scala_cli_docker](https://cdn.virtuslab.com/Rethinking_Gatling_A_Scala_CLI_and_Containerization_Approach_to_Performance_Testing_cover_min_c29d6a6232.jpg?format=webp&width=500)
 
-### How to mine Scala 3 compiler metadata using TASTy files](/blog/scala/scala-3-compiler-mining-metadata-tasty-files/)[![The_Most_Common_Scala_Myths_Debunked_image](https://cdn.virtuslab.com/The_Most_Common_Scala_Myths_Debunked_image_min_7af8cc7e9e.jpg?format=webp&width=500)
+### Rethinking Gatling: A Scala CLI and Containerisation Approach to Performance Testing](/blog/scala/gatling-a-scala-cli/)[![OOP vs FP cover](https://cdn.virtuslab.com/OOP_vs_FP_cover_bbf7fa197c.jpg?format=webp&width=500)
 
-### The Most Common Scala Myths Debunked](/blog/scala/the-most-common-scala-myths-debunked/)
+### OOP vs. FP. The pursuit of extensibility part #1](/blog/scala/oop-vs-fp-the-pursuit-of-extensibility-part-1/)
 
 ![Image Alt](https://images.virtuslab.com/Tisax_footer_c54673144e.svg)![Image Alt](https://images.virtuslab.com/ISO_footer_5ed666e5c1.svg)
 
