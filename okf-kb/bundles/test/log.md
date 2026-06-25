@@ -1,6 +1,11 @@
 # Bundle Update Log
 
 
+## 2026-06-25
+
+* **Creation**: 创建分离检查（Separation Checking）概念文档，基于 Scala 3 的 Capture Checking 扩展，介绍 SharedCapability、ExclusiveCapability、移动语义和消费参数等核心概念。
+
+
 ## 2026-06-24
 
 * **Creation**: 引入 vibe-types Scala 3 编译期约束指南：新增 1 篇总览概念（concepts/scala3/vibe_types_guide）、47 篇特性目录参考（references/scala3/catalog/）、20 篇用例索引参考（references/scala3/usecases/），全部简体中文、含文件相对路径交叉链接。

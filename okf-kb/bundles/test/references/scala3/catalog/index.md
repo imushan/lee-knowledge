@@ -17,6 +17,7 @@
 * [代数数据类型（Enum / ADT / GADT）](algebraic-data-types.md) - 通过 enum 将值空间封闭为编译器可知的有限备选项，实现穷尽模式匹配并按分支细化类型信息。
 * [依赖类型（路径依赖类型与 match 类型）](dependent-types.md) - 通过路径依赖类型、match 类型、单例类型与依赖函数类型，将输出类型绑定到输入值或输入类型，在编译期验证两者关系。
 * [关联类型（通过类型成员）](associated-types.md) - Scala 中通过抽象类型成员实现的关联类型，与 Rust 的 associated types 和 Haskell 的 type families 对应，由实现者决定具体类型。
+* [分离检查（Separation Checking）](separation-checking.md) - 基于捕获检查的实验性扩展，通过 SharedCapability 和 ExclusiveCapability 追踪程序中哪些部分可以修改数据，防止并发数据竞争并区分只读与可写效果。
 * [单例类型、字面量类型与编译期值参数](const-generics.md) - 通过单例/字面量类型、inline 参数、constValue 与 compiletime.ops，将字面量值提升到类型层，实现 const generics 风格的维度与容量约束。
 * [变型与子类型规则（Variance & Subtyping）](variance-subtyping.md) - 通过协变、逆变与不变标注声明并强制泛型类型的可替换性规则，在编译期保证 Liskov 替换原则成立。
 * [变更与移除的特性](changed-dropped.md) - Scala 3 相对 Scala 2 的类型系统行为变更与移除：改进的类型推断、新的隐式解析算法、移除存在类型、限制抽象类型上的类型投影。
