@@ -1,6 +1,6 @@
 ---
 type: Reference
-resource: /home/ai/lee/workspace/bleep_scripts/mcp-setup/scalasemantic-integration-design.md
+resource: sources/articles/bleep-mcp-setup-design.md
 title: bleep mcp-setup 脚本：接入 ScalaSemantic MCP
 description: 用 BleepScript 复刻 sbt-scalasemantic-mcp 插件的编排逻辑，在 bleep 项目里一条 bleep mcp-setup
   命令完成 ScalaSemantic MCP 服务器的接入：装 launcher、prefetch jar、合并写 .mcp.json。
@@ -11,7 +11,7 @@ tags:
 - ScalaSemantic
 - MCP
 - SemanticDB
-timestamp: '2026-06-29T12:29:06Z'
+timestamp: '2026-06-29T12:41:54Z'
 ---
 
 # 用途
@@ -113,5 +113,5 @@ scripts:
 
 # Citations
 
-- `bleep_scripts/mcp-setup/scalasemantic-integration-design.md`（本地：`/home/ai/lee/workspace/bleep_scripts/mcp-setup/scalasemantic-integration-design.md`）
+- `bleep_scripts/mcp-setup/scalasemantic-integration-design.md`（已钉死到原料层：[bleep-mcp-setup-design](../../../../../sources/articles/bleep-mcp-setup-design.md)；原始位置 `/home/ai/lee/workspace/bleep_scripts/mcp-setup/scalasemantic-integration-design.md`）
 - 源码：`bleep_scripts/mcp-setup/McpSetup.scala`

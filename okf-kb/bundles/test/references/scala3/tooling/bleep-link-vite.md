@@ -1,6 +1,6 @@
 ---
 type: Reference
-resource: /home/ai/lee/workspace/bleep_scripts/link-vite/link-vite-design.md
+resource: sources/articles/bleep-link-vite-design.md
 title: bleep link-vite 脚本：Scala.js + Vite 统一开发流水线
 description: 用纯 Scala BleepScript 作为全局调度器，驱动 Scala.js + Vite 的统一开发流水线：读 bleep 项目模型定位链接产物、动态生成临时
   vite 配置、双路监听（后台 bleep link --watch + 前台 npx vite），抛弃静态 vite.config.js。
@@ -12,7 +12,7 @@ tags:
 - Vite
 - 前端工程化
 - Laminar
-timestamp: '2026-06-29T12:29:33Z'
+timestamp: '2026-06-29T12:42:18Z'
 ---
 
 # 用途
@@ -140,5 +140,5 @@ dev 启动后浏览器打开 `http://localhost:5173`，改 `.scala` 保存即自
 
 # Citations
 
-- `bleep_scripts/link-vite/link-vite-design.md`（本地：`/home/ai/lee/workspace/bleep_scripts/link-vite/link-vite-design.md`）
+- `bleep_scripts/link-vite/link-vite-design.md`（已钉死到原料层：[bleep-link-vite-design](../../../../../sources/articles/bleep-link-vite-design.md)；原始位置 `/home/ai/lee/workspace/bleep_scripts/link-vite/link-vite-design.md`）
 - 源码：`bleep_scripts/link-vite/LinkVite.scala`

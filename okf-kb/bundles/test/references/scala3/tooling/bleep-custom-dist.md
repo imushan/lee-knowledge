@@ -1,6 +1,6 @@
 ---
 type: Reference
-resource: /home/ai/lee/workspace/bleep_scripts/custom-dist/custom-dist-design.md
+resource: sources/articles/bleep-custom-dist-design.md
 title: bleep custom-dist 脚本：封装内置 Dist 打包后端服务
 description: 用 BleepScript 封装 bleep 内置 Dist 命令打包后端服务（api-server），并用 os-lib 把产物搬到约定输出目录
   out/。最简的一种 script：不编排外部进程、不生成配置，直接调用内置命令 API。
@@ -11,7 +11,7 @@ tags:
 - 打包
 - Dist
 - os-lib
-timestamp: '2026-06-29T12:29:49Z'
+timestamp: '2026-06-29T12:42:32Z'
 ---
 
 # 用途
@@ -90,5 +90,5 @@ scripts:
 
 # Citations
 
-- `bleep_scripts/custom-dist/custom-dist-design.md`（本地：`/home/ai/lee/workspace/bleep_scripts/custom-dist/custom-dist-design.md`）
+- `bleep_scripts/custom-dist/custom-dist-design.md`（已钉死到原料层：[bleep-custom-dist-design](../../../../../sources/articles/bleep-custom-dist-design.md)；原始位置 `/home/ai/lee/workspace/bleep_scripts/custom-dist/custom-dist-design.md`）
 - 源码：`bleep_scripts/custom-dist/CustomDist.scala`

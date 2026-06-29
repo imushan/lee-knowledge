@@ -3,6 +3,7 @@
 
 ## 2026-06-29
 
+* **Update**: 将 bleep 脚本簇的 4 份原料（README + 3 份设计文档）钉死到原料层 sources/articles/（bleep-scripts-readme / bleep-mcp-setup-design / bleep-link-vite-design / bleep-custom-dist-design），并把对应 4 份概念文档的 resource 指向这些落盘副本、Citations 补注钉死位置。
 * **Creation**: 新增 bleep 构建工具脚本簇：1 个概念（BleepScript 共性姿势）+ 3 个参考（mcp-setup / link-vite / custom-dist），置于新建的 tooling/ 子目录；并 augment scalasemantic-mcp 概念，新增「bleep 项目配置」一节并交叉链接到 bleep-mcp-setup。
 * **Creation**: 新增 ScalaSemantic 概念文档，介绍通过 SemanticDB 和 MCP 协议让 AI 助手访问 Scala 编译器语义信息的技术。
 
