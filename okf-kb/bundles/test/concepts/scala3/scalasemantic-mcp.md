@@ -11,7 +11,8 @@ tags:
 - 编译器
 - 符号解析
 - 类型推断
-timestamp: '2026-06-29T08:04:08Z'
+- bleep
+timestamp: '2026-06-29T12:30:54Z'
 ---
 
 # 核心问题
@@ -118,6 +119,15 @@ sbt mcpClientConfig  # 默认输出 Claude 风格 .mcp.json
 
 其他客户端：`mcpClient := "codex"`
 
+# bleep 项目配置
+
+ScalaSemantic 服务器**构建工具无关**（只读磁盘上的 `.semanticdb`），sbt 插件并非特殊通道。因此 **bleep 项目**没有 sbt 插件也能接入——只需：
+
+1. 在 `bleep.yaml` 加 `-Xsemanticdb -sourceroot`，让 `bleep compile` 产出 `META-INF/semanticdb/*.semanticdb`。
+2. 用一个 BleepScript 复刻 sbt 插件的编排逻辑：装官方 launcher、prefetch jar、合并写 `.mcp.json`。
+
+这是一条命令 `bleep mcp-setup`，具体实现见 [bleep mcp-setup 脚本](../../references/scala3/tooling/bleep-mcp-setup.md)。BleepScript 的共性写法见 [BleepScript 复用脚本姿势](tooling/bleep-scripts.md)。
+
 # 局限性
 
 - **数据时效性**：SemanticDB 反映最后构建状态，代码变更后需重新编译
@@ -126,9 +136,11 @@ sbt mcpClientConfig  # 默认输出 Claude 风格 .mcp.json
 
 # 相关概念
 
-- [上下文函数与 Context Bounds](../references/scala3/catalog/context-functions.md) - Scala 3 隐式参数机制
-- [类型类派生](../references/scala3/catalog/derivation.md) - 编译器自动生成实例
-- [隐式解析](../references/scala3/catalog/trait-solver.md) - given 搜索算法
+- [bleep mcp-setup 脚本：接入 ScalaSemantic MCP](../../references/scala3/tooling/bleep-mcp-setup.md) - 在 bleep 项目里一键接入本服务器的实现
+- [BleepScript 复用脚本姿势](tooling/bleep-scripts.md) - bleep 项目自动化的统一模式
+- [上下文函数与 Context Bounds](../../references/scala3/catalog/context-functions.md) - Scala 3 隐式参数机制
+- [类型类派生](../../references/scala3/catalog/derivation.md) - 编译器自动生成实例
+- [隐式解析](../../references/scala3/catalog/trait-solver.md) - given 搜索算法
 
 # Citations
 
