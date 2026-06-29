@@ -1,6 +1,11 @@
 # Bundle Update Log
 
 
+## 2026-06-29
+
+* **Creation**: 新增 ScalaSemantic 概念文档，介绍通过 SemanticDB 和 MCP 协议让 AI 助手访问 Scala 编译器语义信息的技术。
+
+
 ## 2026-06-25
 
 * **Update**: 增强「捕获检查」与「分离检查」概念文档：补充捕获类型语法、引用透明 map 示例、别名追踪、设计动机说明，添加 VirtusLab 文章引用
