@@ -1,6 +1,11 @@
 # Bundle Update Log
 
 
+## 2026-07-02
+
+* **Creation**: 新增概念文档「六边形架构与 Scala 3 类型类融合设计蓝图」：用 Typeclass 定义微端口、given 实例做适配器、extension 让领域模型在服务中穿梭的弹性六边形架构设计。
+
+
 ## 2026-06-29
 
 * **Update**: 将 bleep 脚本簇的 4 份原料（README + 3 份设计文档）钉死到原料层 sources/articles/（bleep-scripts-readme / bleep-mcp-setup-design / bleep-link-vite-design / bleep-custom-dist-design），并把对应 4 份概念文档的 resource 指向这些落盘副本、Citations 补注钉死位置。
